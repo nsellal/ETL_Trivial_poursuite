@@ -2,9 +2,9 @@
 __pycache__/
 *.pyc
 .DS_Store
-data/warehouse.duckdb*
-dbt_trivial/target/
-dbt_trivial/logs/
-dbt_trivial/dbt_packages/
+*.duckdb*
+target/
+logs/
+dbt_packages/
 .env
 CLAUDE.md

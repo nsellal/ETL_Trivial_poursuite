@@ -47,7 +47,7 @@ BRONZE_DIR = ROOT_DIR / "bronze"
 
 BASE_URL = "https://opentdb.com"
 ENCODING = "url3986"
-MIN_DELAY_S = 5.5  # limite de l'API : 1 appel / 5 s, avec une marge
+MIN_DELAY_S = 6.5  # limite de l'API : 1 appel / 5 s, avec une marge
 MAX_AMOUNT = 50  # nombre maximum de questions par appel
 MAX_RETRIES = 8
 DIFFICULTIES = ("easy", "medium", "hard")

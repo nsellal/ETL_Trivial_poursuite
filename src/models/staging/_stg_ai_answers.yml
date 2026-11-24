@@ -1,0 +1,57 @@
+version: 2
+
+# Documentation et tests du modèle stg_ai_answers.
+# Lancer les tests : dbt test --profiles-dir . --select stg_ai_answers
+models:
+  - name: stg_ai_answers
+    description: "Réponses des LLM au benchmark. 1 ligne = 1 réponse (question × modèle × prompt)."
+    columns:
+      - name: answer_id
+        description: "Clé : question_id|model|prompt_id."
+        data_tests:
+          - unique        # pas deux réponses pour le même couple
+          - not_null
+
+      - name: question_id
+        description: "Identifiant de la question (même calcul que stg_questions)."
+        data_tests:
+          - not_null
+          # Chaque réponse doit correspondre à une question connue
+          - relationships:
+              arguments:
+                to: ref('stg_questions')
+                field: question_id
+
+      - name: model
+        description: "Nom du modèle dans LM Studio."
+        data_tests:
+          - not_null
+
+      - name: prompt_id
+        description: "Version du prompt (ex. v2_strict)."
+        data_tests:
+          - not_null
+
+      - name: expected_letter
+        description: "Lettre de la bonne réponse après mélange des choix."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["A", "B", "C", "D"]
+
+      - name: ai_answer
+        description: "Lettre extraite de la réponse du modèle, NULL si inexploitable."
+        data_tests:
+          - accepted_values:      # les NULL sont ignorés par ce test
+              arguments:
+                values: ["A", "B", "C", "D"]
+
+      - name: ai_correct
+        description: "True si ai_answer = expected_letter."
+        data_tests:
+          - not_null
+
+      - name: response_time
+        description: "Temps de génération en secondes (time.perf_counter)."
+        data_tests:
+          - not_null

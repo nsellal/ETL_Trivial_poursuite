@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  # Les Parquet de silver/ sont produits par src/bronze_to_silver.py
+  # (à lancer avant dbt run). Contenu identique aux CSV bronze, mais typé.
+  - name: bronze
+    description: "Données bronze converties en Parquet dans silver/ (textes encore encodés url3986)."
+    tables:
+      - name: questions_raw
+        description: "Questions OpenTDB (src/extract_bronze.py), textes encodés url3986."
+        meta:
+          # Motif : lit toutes les extractions, dédoublonnées ensuite en staging
+          external_location: "read_parquet('silver/questions_raw_*.parquet')"
+
+      - name: ai_answers_raw
+        description: "Réponses des LLM (src/run_benchmark.py), 1 ligne = question × modèle × prompt."
+        meta:
+          external_location: "read_parquet('silver/ai_answers_raw.parquet')"

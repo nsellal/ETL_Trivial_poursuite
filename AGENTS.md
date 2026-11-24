@@ -149,6 +149,17 @@ python src/test_llm.py
 Envoie une question au modèle et affiche la réponse brute et le temps de
 réponse. Utile pour vérifier que LM Studio répond avant un run.
 
+## Travailler avec un agent IA
+
+1. L'agent **propose** les fichiers à créer ou modifier (contenu et résultat
+   attendu), puis **attend une confirmation explicite** avant d'écrire quoi
+   que ce soit.
+2. Une proposition **ne contient aucune commande à exécuter** (`dbt run`,
+   `dbt test`, scripts...) : l'humain risquerait de la lancer avant que les
+   fichiers existent.
+3. Après confirmation, l'agent crée les fichiers, **confirme qu'ils sont
+   écrits**, et seulement alors donne les commandes de vérification.
+
 ## Règles git (commit et push)
 
 Le dépôt est partagé à deux : ces règles évitent les historiques divergents

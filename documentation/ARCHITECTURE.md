@@ -18,12 +18,13 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
                                bronze/ai_answers_raw.csv
       │                                        │
       └───────────────┬────────────────────────┘
+                      │ src/bronze_to_silver.py
+                      ▼
+          silver/*.parquet  (conversion typée des CSV)
                       │ dbt + DuckDB (src/models/)      [à faire]
                       ▼
-          silver  (staging → intermediate)              [à faire]
-                      │
-                      ▼
-          gold    (marts : métriques du benchmark)      [à faire]
+          gold/warehouse.duckdb
+            (staging → intermediate → marts)            [à faire]
                       │
                       ▼
           Streamlit + Plotly (restitution)              [à faire]
@@ -34,25 +35,30 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
 | Couche   | Emplacement                          | Contenu                                                        | État        |
 |----------|--------------------------------------|----------------------------------------------------------------|-------------|
 | Bronze   | `bronze/` (CSV versionnés)           | Données brutes telles que renvoyées par les sources            | En place    |
-| Silver   | `silver/` (parquet)          | Données décodées, dédoublonnées, typées, jointes               | À faire     |
-| Gold     | `gold/warehouse.duckdb`              | Tables d'analyse (scores par catégorie, difficulté, prompt...) | À faire     |
+| Silver   | `silver/` (parquet)          | Parquet typés, conversion des CSV bronze                       | À faire     |
+| Gold     | `gold/warehouse.duckdb`      | Base DuckDB dbt : staging → intermediate → marts               | À faire     |
 
 Règles :
 
 - **Bronze reste brute** : aucune transformation dans les scripts qui
   écrivent en bronze. Les questions sont stockées telles que l'API les
   renvoie ; les réponses telles que le modèle les produit.
-- **Silver** : décodage `url3986`, calcul du `question_id`, suppression des
-  doublons, typage, jointure questions × réponses.
-- **Gold** : agrégats prêts à l'analyse et au dashboard.
+- **Silver** : conversion en Parquet (typé, compressé), sans modifier le
+  contenu (textes encore encodés, doublons conservés).
+- **Gold** : nettoyage en staging (décodage `url3986`, calcul du
+  `question_id`, dédoublonnage, typage), jointures en intermediate, agrégats
+  prêts à l'analyse et au dashboard en marts.
 
-> **Silver et gold ne sont pas encore construites.** Avec dbt-duckdb, les
-> couches vivent comme **schémas dans une base DuckDB** (`staging`,
-> `intermediate`, `marts`) plutôt que comme fichiers.
+> **Emplacements retenus :**
 >
-> **Base DuckDB : `gold/warehouse.duckdb`** (fixé dans `profiles.yml`).
-> Ce fichier est ignoré par git (`*.duckdb*`) et reconstruit par `dbt run`.
-> L'application Streamlit devra lire cette même base.
+> - `silver/*.parquet` : produits par `src/bronze_to_silver.py`, un Parquet
+>   par CSV bronze (même nom, même contenu, mais typé et compressé). Ce sont
+>   les **sources lues par dbt** (`read_parquet` dans `_sources.yml`) : lancer
+>   ce script avant `dbt run`.
+> - `gold/warehouse.duckdb` : base DuckDB construite par dbt (chemin fixé dans
+>   `profiles.yml`, repris par `config.WAREHOUSE_PATH` pour Streamlit). Elle
+>   contient les schémas `staging`, `intermediate` et `marts` (couche gold,
+>   sur le modèle du cas Spotify). Ignorée par git, reconstruite par `dbt run`.
 
 ## Convention de jointure : `question_id`
 
@@ -96,7 +102,8 @@ Points d'attention :
     (ex. `random_baseline` = 1 / nombre de choix, `is_unparsable`) ;
   - `marts/` : tables finales gold (classement modèle × prompt, précision par
     catégorie, par difficulté...).
-- Sources : les deux CSV bronze, lus avec `read_csv`.
+- Sources : les Parquet de `silver/` (conversion des CSV bronze par
+  `src/bronze_to_silver.py`), lus avec `read_parquet`.
 - Tests prévus : `unique` / `not_null` sur `question_id`, `accepted_values`
   sur `difficulty` et `type`, `relationships` réponses → questions.
 ### Configuration dbt
@@ -112,10 +119,8 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 
 `dbt debug --profiles-dir .` passe (connexion DuckDB OK).
 
-> **À corriger** : `model-paths` vaut `["models"]` alors que les modèles
-> sont dans `src/models/`. Tant que ce n'est pas corrigé
-> (`model-paths: ["src/models"]`), dbt ne trouve aucun modèle et la règle
-> `marts` → table ne s'applique à rien (avertissement de `dbt parse`).
+`model-paths` et `macro-paths` pointent vers `src/models` et `src/macros`
+(les modèles et la macro `generate_schema_name` sont rangés dans `src/`).
 
 ## Arborescence
 
@@ -127,11 +132,12 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 ├── bronze/                      # couche bronze (CSV bruts, versionnés)
 │   ├── questions_raw_<ts>.csv   # sortie de extract_bronze.py
 │   └── ai_answers_raw.csv       # sortie de run_benchmark.py
-├── silver/                      # réservé (couche pas encore construite)
+├── silver/                      # Parquet produits par bronze_to_silver.py
 ├── gold/
-│   └── warehouse.duckdb         # base dbt (ignorée par git, créée par dbt)
+│   └── warehouse.duckdb         # base DuckDB construite par dbt (non versionnée)
 ├── src/
 │   ├── config.py                # chemins + configuration du LLM local
+│   ├── bronze_to_silver.py      # CSV bronze → Parquet silver
 │   ├── extract_bronze.py        # scraper OpenTDB → bronze
 │   ├── prompts.py               # prompts versionnés du benchmark
 │   ├── run_benchmark.py         # questions → LLM → ai_answers_raw.csv
@@ -206,7 +212,8 @@ Contenu actuel : **10 594 réponses**, 2 runs complets de 5 297 réponses
 
 | Fichier                 | Rôle                                                          |
 |-------------------------|---------------------------------------------------------------|
-| `src/config.py`         | Chemins (`BRONZE_DIR`, `AI_ANSWERS_RAW_CSV`, `latest_questions_csv()`) et config du LLM |
+| `src/config.py`         | Chemins (`BRONZE_DIR`, `AI_ANSWERS_RAW_CSV`, `latest_questions_csv()`, `SILVER_DIR`, `GOLD_DIR`, `WAREHOUSE_PATH`) et config du LLM |
+| `src/bronze_to_silver.py` | Conversion des CSV bronze en Parquet dans `silver/`         |
 | `src/extract_bronze.py` | Scraping complet d'OpenTDB vers la couche bronze              |
 | `src/prompts.py`        | Prompts versionnés (`PROMPTS`, `DEFAULT_PROMPT_ID`)           |
 | `src/run_benchmark.py`  | Questions → LLM → `ai_answers_raw.csv` (reprise automatique)  |

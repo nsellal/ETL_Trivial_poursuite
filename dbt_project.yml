@@ -5,7 +5,8 @@ config-version: 2
 profile: trivial_pst
 
 # Où dbt cherche les fichiers
-model-paths: ["models"]
+model-paths: ["src/models"]
+macro-paths: ["src/macros"]
 
 models:
   trivial_poursuite:

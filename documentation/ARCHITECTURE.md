@@ -34,8 +34,8 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
 | Couche   | Emplacement                          | Contenu                                                        | État        |
 |----------|--------------------------------------|----------------------------------------------------------------|-------------|
 | Bronze   | `bronze/` (CSV versionnés)           | Données brutes telles que renvoyées par les sources            | En place    |
-| Silver   | à définir (voir ci-dessous)          | Données décodées, dédoublonnées, typées, jointes               | À faire     |
-| Gold     | à définir (voir ci-dessous)          | Tables d'analyse (scores par catégorie, difficulté, prompt...) | À faire     |
+| Silver   | `silver/` (parquet)          | Données décodées, dédoublonnées, typées, jointes               | À faire     |
+| Gold     | `gold/` (voir ci-dessous)          | Tables d'analyse (scores par catégorie, difficulté, prompt...) | À faire     |
 
 Règles :
 
@@ -49,8 +49,8 @@ Règles :
 > **Silver et gold ne sont pas encore construites.** Les dossiers `silver/`
 > et `gold/` sont des emplacements réservés. À trancher au moment de
 > construire dbt : avec dbt-duckdb, les couches silver et gold vivent
-> naturellement comme **schémas dans une base DuckDB** (`staging`,
-> `intermediate`, `mart`) plutôt que comme fichiers. L'emplacement du
+> naturellement comme **schémas dans une base DuckDB** (`intermediate`, `marts`) plutôt que comme fichiers. L'emplacement du
+> `staging` reste inutiliser et le dossier reste vide pour l'instant.
 > fichier `.duckdb` (ex. `silver/warehouse.duckdb` ou à la racine) devra être
 > fixé dans `profiles.yml` et repris par l'application Streamlit.
 
@@ -78,7 +78,7 @@ Points d'attention :
   hacher le texte encodé donnerait des identifiants différents.
 - Le séparateur est `|`, sans espace.
 - Le CSV source contient **2 doublons** (même question, même bonne réponse) :
-  5 299 lignes mais 5 297 `question_id` distincts. Le staging doit
+  5 299 lignes mais 5 297 `question_id` distincts. La transformation en vers la couche silver doit
   dédoublonner (`qualify row_number() over (partition by question_id order
   by scraped_at) = 1`) avant de tester `unique` sur `question_id`.
 - Aucun caractère `+` brut dans les textes encodés : `url_decode` (DuckDB) et
@@ -99,7 +99,7 @@ Points d'attention :
 - Sources : les deux CSV bronze, lus avec `read_csv`.
 - Tests prévus : `unique` / `not_null` sur `question_id`, `accepted_values`
   sur `difficulty` et `type`, `relationships` réponses → questions.
-- `dbt_project.yml` et `profiles.yml` à la racine : encore vides.
+- `dbt_project.yml` et `profiles.yml` à la racine.
 
 ## Arborescence
 

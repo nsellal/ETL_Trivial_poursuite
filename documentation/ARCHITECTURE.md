@@ -35,7 +35,7 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
 |----------|--------------------------------------|----------------------------------------------------------------|-------------|
 | Bronze   | `bronze/` (CSV versionnés)           | Données brutes telles que renvoyées par les sources            | En place    |
 | Silver   | `silver/` (parquet)          | Données décodées, dédoublonnées, typées, jointes               | À faire     |
-| Gold     | `gold/` (voir ci-dessous)          | Tables d'analyse (scores par catégorie, difficulté, prompt...) | À faire     |
+| Gold     | `gold/warehouse.duckdb`              | Tables d'analyse (scores par catégorie, difficulté, prompt...) | À faire     |
 
 Règles :
 
@@ -46,12 +46,13 @@ Règles :
   doublons, typage, jointure questions × réponses.
 - **Gold** : agrégats prêts à l'analyse et au dashboard.
 
-> **Silver et gold ne sont pas encore construites.** Les dossiers `silver/`
-> et `gold/` sont des emplacements réservés. À trancher au moment de
-> construire dbt : avec dbt-duckdb, les couches silver et gold vivent
-> naturellement comme **schémas dans une base DuckDB** (`staging`, `intermediate`, `marts`) plutôt que comme fichiers. L'emplacement du
-> fichier `.duckdb` (ex. `silver/warehouse.duckdb` ou à la racine) devra être
-> fixé dans `profiles.yml` et repris par l'application Streamlit.
+> **Silver et gold ne sont pas encore construites.** Avec dbt-duckdb, les
+> couches vivent comme **schémas dans une base DuckDB** (`staging`,
+> `intermediate`, `marts`) plutôt que comme fichiers.
+>
+> **Base DuckDB : `gold/warehouse.duckdb`** (fixé dans `profiles.yml`).
+> Ce fichier est ignoré par git (`*.duckdb*`) et reconstruit par `dbt run`.
+> L'application Streamlit devra lire cette même base.
 
 ## Convention de jointure : `question_id`
 
@@ -98,7 +99,23 @@ Points d'attention :
 - Sources : les deux CSV bronze, lus avec `read_csv`.
 - Tests prévus : `unique` / `not_null` sur `question_id`, `accepted_values`
   sur `difficulty` et `type`, `relationships` réponses → questions.
-- `dbt_project.yml` et `profiles.yml` à la racine.
+### Configuration dbt
+
+`dbt_project.yml` et `profiles.yml` sont à la racine ; lancer dbt depuis la
+racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
+
+| Fichier           | Réglage                                                          |
+|-------------------|------------------------------------------------------------------|
+| `dbt_project.yml` | Projet `trivial_poursuite`, profil `trivial_pst`                 |
+| `dbt_project.yml` | Modèles de `marts/` matérialisés en **tables** (`+materialized: table`) |
+| `profiles.yml`    | Profil `trivial_pst`, cible `dev` : DuckDB `gold/warehouse.duckdb`, 4 threads |
+
+`dbt debug --profiles-dir .` passe (connexion DuckDB OK).
+
+> **À corriger** : `model-paths` vaut `["models"]` alors que les modèles
+> sont dans `src/models/`. Tant que ce n'est pas corrigé
+> (`model-paths: ["src/models"]`), dbt ne trouve aucun modèle et la règle
+> `marts` → table ne s'applique à rien (avertissement de `dbt parse`).
 
 ## Arborescence
 
@@ -110,7 +127,9 @@ Points d'attention :
 ├── bronze/                      # couche bronze (CSV bruts, versionnés)
 │   ├── questions_raw_<ts>.csv   # sortie de extract_bronze.py
 │   └── ai_answers_raw.csv       # sortie de run_benchmark.py
-├── silver/  gold/               # réservés, couches pas encore construites
+├── silver/                      # réservé (couche pas encore construite)
+├── gold/
+│   └── warehouse.duckdb         # base dbt (ignorée par git, créée par dbt)
 ├── src/
 │   ├── config.py                # chemins + configuration du LLM local
 │   ├── extract_bronze.py        # scraper OpenTDB → bronze
@@ -118,8 +137,8 @@ Points d'attention :
 │   ├── run_benchmark.py         # questions → LLM → ai_answers_raw.csv
 │   ├── test_llm.py              # test manuel d'un appel au modèle local
 │   └── models/                  # modèles dbt (staging / intermediate / marts), vides
-├── dbt_project.yml              # vide pour l'instant
-├── profiles.yml                 # vide pour l'instant
+├── dbt_project.yml              # projet dbt (profil trivial_pst)
+├── profiles.yml                 # connexion DuckDB → gold/warehouse.duckdb
 └── requirements.txt
 ```
 

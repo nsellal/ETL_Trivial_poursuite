@@ -182,7 +182,7 @@ et le travail en double.
   jamais de chemin absolu en dur.
 - Ignorés par git (`.gitignore`) : `.venv/`, `__pycache__/`, `*.pyc`,
   `.DS_Store`, `*.duckdb*`, `target/`, `logs/`, `dbt_packages/`, `.env`,
-  `CLAUDE.md`.
+  `CLAUDE.md`, `.user.yml` (identifiant anonyme créé par dbt).
 - Ne jamais committer de secrets : utiliser `.env` / variables
   d'environnement. Attention à `profiles.yml`, qui est versionné.
 - Dépôt GitHub : `nsellal/ETL_Trivial_poursuite`, branche `main`.

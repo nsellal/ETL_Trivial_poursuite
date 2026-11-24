@@ -10,3 +10,4 @@ dbt_packages/
 CLAUDE.md
 # dbt_project.yml
 # profiles.yml
+.user.yml

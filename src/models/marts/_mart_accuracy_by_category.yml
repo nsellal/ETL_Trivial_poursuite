@@ -1,0 +1,22 @@
+version: 2
+
+# Lancer les tests : dbt test --profiles-dir . --select mart_accuracy_by_category
+models:
+  - name: mart_accuracy_by_category
+    description: "Précision par catégorie pour chaque run (modèle × prompt)."
+    data_tests:
+      - not_empty
+    columns:
+      - name: run_category_id
+        description: "Clé : model|prompt_id|category."
+        data_tests: [unique, not_null]
+      - name: category_group
+        description: "Grande famille, ex. 'Entertainment'."
+        data_tests: [not_null]
+      - name: accuracy
+        description: "Part de bonnes réponses dans la catégorie (0 à 1)."
+        data_tests: [not_null]
+      - name: gap_vs_run
+        description: "accuracy - précision globale du run : > 0 = catégorie où le modèle est meilleur que sa moyenne."
+      - name: share_of_run
+        description: "Part des questions du run dans cette catégorie (0 à 1)."

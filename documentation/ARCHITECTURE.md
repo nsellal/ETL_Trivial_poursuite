@@ -25,7 +25,7 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
                       │ dbt + DuckDB (src/models/)
                       ▼
           gold/warehouse.duckdb
-            staging.stg_obt_answers → intermediate.int_answers → marts.*  [marts à faire]
+            staging.stg_obt_answers → intermediate.int_answers → marts.mart_* (4 marts)
                       │
                       ▼
           Streamlit + Plotly (restitution)              [à faire]
@@ -37,7 +37,7 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
 |----------|--------------------------------------|----------------------------------------------------------------|-------------|
 | Bronze   | `bronze/` (CSV versionnés)           | Données brutes telles que renvoyées par les sources            | En place    |
 | Silver   | `silver/obt_answers.parquet` | One Big Table : réponses des IA × questions, décodée, dédoublonnée | En place    |
-| Gold     | `gold/warehouse.duckdb`      | Base DuckDB dbt : staging → intermediate → marts               | Staging et intermediate en place, marts à faire |
+| Gold     | `gold/warehouse.duckdb`      | Base DuckDB dbt : staging → intermediate → marts               | En place    |
 
 Règles :
 
@@ -127,8 +127,17 @@ Points d'attention :
     dérivées `nb_choices`, `is_unparsable`, `random_baseline` (= 1 / nb
     choix), `question_length`, `output_length`. Table lue par les marts et
     Streamlit ;
-  - `marts/` (tables, schéma `marts`) : classement modèle × prompt,
-    précision par catégorie, par difficulté... — à faire.
+  - `marts/` (**tables**, schéma `marts`) : une table par question métier,
+    toutes calculées par `GROUP BY` sur `int_answers`. Les taux sont des
+    fractions entre 0 et 1, sans arrondi (arrondis dans Streamlit) ; les
+    réponses inexploitables comptent comme fausses.
+
+    | Mart | Grain | Question métier |
+    |------|-------|-----------------|
+    | `mart_leaderboard` | run (modèle × prompt) | Quel run est le meilleur ? Précision, gain sur le hasard, format respecté, temps moyen / médian / p95, rang |
+    | `mart_accuracy_by_category` | run × catégorie | Points forts et faibles par thème ; écart à la moyenne du run (`gap_vs_run`), poids de la catégorie (`share_of_run`) |
+    | `mart_accuracy_by_difficulty` | run × difficulté × type | Effet de la difficulté, QCM et vrai/faux séparés (hasard 25 % / 50 %) ; `difficulty_order` pour trier |
+    | `mart_letter_bias` | run × lettre | Axe exploratoire : biais de position (`over_answered` = lettre choisie − attendue, rappel, fiabilité) |
 - Tests : `unique` / `not_null` sur `answer_id`, `not_null` sur les
   colonnes clés et les dates, `accepted_values` sur `type`, `difficulty`,
   `expected_letter`, `ai_answer`, `nb_choices`, `not_empty` (macro
@@ -155,7 +164,7 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 `generate_schema_name` (`src/macros/`) donne les schémas `staging`,
 `intermediate`, `marts` tels quels (et non `main_staging`).
 
-`dbt build --profiles-dir .` : **28 PASS** (staging + intermediate).
+`dbt build --profiles-dir .` : **55 PASS** (staging + intermediate + 4 marts).
 
 ## Arborescence
 
@@ -182,7 +191,8 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 │   └── models/
 │       ├── staging/             # stg_obt_answers
 │       ├── intermediate/        # int_answers
-│       └── marts/               # vide
+│       └── marts/               # mart_leaderboard, mart_accuracy_by_category,
+│                                # mart_accuracy_by_difficulty, mart_letter_bias
 ├── dbt_project.yml              # projet dbt (profil trivial_pst)
 ├── profiles.yml                 # connexion DuckDB → gold/warehouse.duckdb
 └── requirements.txt

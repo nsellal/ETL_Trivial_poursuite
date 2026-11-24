@@ -1,0 +1,28 @@
+version: 2
+
+# Lancer les tests : dbt test --profiles-dir . --select mart_leaderboard
+models:
+  - name: mart_leaderboard
+    description: "Classement des runs (modèle × prompt) : précision, gain sur le hasard, format respecté, vitesse."
+    data_tests:
+      - not_empty
+    columns:
+      - name: run_id
+        description: "Clé : model|prompt_id."
+        data_tests: [unique, not_null]
+      - name: rank
+        description: "Rang selon la précision (1 = meilleur)."
+        data_tests: [not_null]
+      - name: accuracy
+        description: "Part de bonnes réponses (0 à 1), inexploitables comptées fausses."
+        data_tests: [not_null]
+      - name: random_baseline
+        description: "Précision moyenne attendue en répondant au hasard."
+      - name: gain_over_random
+        description: "accuracy - random_baseline : apport réel du modèle par rapport au hasard."
+      - name: format_rate
+        description: "Part des réponses où une lettre a pu être extraite (0 à 1)."
+      - name: median_response_time
+        description: "Temps de réponse médian en secondes."
+      - name: p95_response_time
+        description: "95 % des réponses sont plus rapides que ce temps (secondes)."

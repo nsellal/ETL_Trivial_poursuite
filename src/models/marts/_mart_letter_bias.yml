@@ -1,0 +1,29 @@
+version: 2
+
+# Lancer les tests : dbt test --profiles-dir . --select mart_letter_bias
+models:
+  - name: mart_letter_bias
+    description: "Biais de position : pour chaque run et chaque lettre, nb de fois attendue vs choisie par le modèle."
+    data_tests:
+      - not_empty
+    columns:
+      - name: run_letter_id
+        description: "Clé : model|prompt_id|letter."
+        data_tests: [unique, not_null]
+      - name: letter
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["A", "B", "C", "D"]
+      - name: nb_expected
+        description: "Nombre de questions dont la bonne réponse est cette lettre."
+        data_tests: [not_null]
+      - name: nb_answered
+        description: "Nombre de fois où le modèle a répondu cette lettre."
+        data_tests: [not_null]
+      - name: over_answered
+        description: "nb_answered - nb_expected : > 0 = lettre sur-choisie (biais de position)."
+      - name: recall
+        description: "Quand la bonne réponse est cette lettre, part des fois où le modèle la trouve."
+      - name: precision
+        description: "Quand le modèle répond cette lettre, part des fois où il a raison."

@@ -1,0 +1,30 @@
+version: 2
+
+# Lancer les tests : dbt test --profiles-dir . --select mart_accuracy_by_difficulty
+models:
+  - name: mart_accuracy_by_difficulty
+    description: "Précision par difficulté × type de question pour chaque run (modèle × prompt)."
+    data_tests:
+      - not_empty
+    columns:
+      - name: run_difficulty_type_id
+        description: "Clé : model|prompt_id|difficulty|type."
+        data_tests: [unique, not_null]
+      - name: difficulty
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["easy", "medium", "hard"]
+      - name: difficulty_order
+        description: "1 = easy, 2 = medium, 3 = hard (pour trier les graphiques)."
+        data_tests: [not_null]
+      - name: type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["multiple", "boolean"]
+      - name: accuracy
+        description: "Part de bonnes réponses (0 à 1)."
+        data_tests: [not_null]
+      - name: gain_over_random
+        description: "accuracy - random_baseline : permet de comparer QCM et vrai/faux."

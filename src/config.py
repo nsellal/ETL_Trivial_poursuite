@@ -11,6 +11,11 @@ BRONZE_DIR = ROOT_DIR / "bronze"
 # Réponses brutes du modèle (produites par run_benchmark.py)
 AI_ANSWERS_RAW_CSV = BRONZE_DIR / "ai_answers_raw.csv"
 
+# Couches Silver (Parquet) et Gold (base DuckDB construite par dbt)
+SILVER_DIR = ROOT_DIR / "silver"
+GOLD_DIR = ROOT_DIR / "gold"
+WAREHOUSE_PATH = GOLD_DIR / "warehouse.duckdb"
+
 
 def latest_questions_csv():
     """Renvoie le CSV de questions le plus récent (le nom contient un timestamp)."""

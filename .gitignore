@@ -8,3 +8,5 @@ logs/
 dbt_packages/
 .env
 CLAUDE.md
+# dbt_project.yml
+# profiles.yml

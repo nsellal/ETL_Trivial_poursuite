@@ -55,3 +55,13 @@ models:
         description: "Temps de génération en secondes (time.perf_counter)."
         data_tests:
           - not_null
+
+      - name: answered_at
+        description: "Date de la réponse, timestamp Unix en secondes (UTC)."
+        data_tests:
+          - not_null
+
+      - name: answered_at_repr
+        description: "Date de la réponse au format français, heure de Paris : 'JJ/MM/AAAA HH:MM:SS'."
+        data_tests:
+          - not_null

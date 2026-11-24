@@ -46,6 +46,16 @@ models:
         data_tests:
           - not_null
 
+      - name: scraped_at
+        description: "Date d'extraction, timestamp Unix en secondes (UTC)."
+        data_tests:
+          - not_null
+
+      - name: scraped_at_repr
+        description: "Date d'extraction au format français, heure de Paris : 'JJ/MM/AAAA HH:MM:SS'."
+        data_tests:
+          - not_null
+
       - name: nb_choices
         description: "Nombre de choix proposés (bonne réponse + mauvaises)."
         data_tests:

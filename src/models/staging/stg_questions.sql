@@ -43,7 +43,13 @@ select
     trim(correct_answer)                        as correct_answer,
     incorrect_answers,
     len(incorrect_answers) + 1                  as nb_choices,
-    scraped_at
+    scraped_at,                                 -- timestamp Unix (secondes, UTC)
+    -- Représentation française, heure de Paris (heure d'été / d'hiver gérée)
+    -- ex. 1795444434 -> '23/11/2026 15:33:54'
+    strftime(
+        timezone('Europe/Paris', to_timestamp(scraped_at)),
+        '%d/%m/%Y %H:%M:%S'
+    )                                           as scraped_at_repr
 from identified
 -- Dédoublonnage : on garde l'extraction la plus récente de chaque question
 qualify row_number() over (

@@ -21,7 +21,13 @@ select
     trim(ai_answer)                                 as ai_answer,   -- NULL si pas de lettre reconnue
     ai_correct,
     cast(response_time as double)                   as response_time,
-    answered_at
+    answered_at,                                    -- timestamp Unix (secondes, UTC)
+    -- Représentation française, heure de Paris (heure d'été / d'hiver gérée)
+    -- ex. 1795444434 -> '23/11/2026 15:33:54'
+    strftime(
+        timezone('Europe/Paris', to_timestamp(answered_at)),
+        '%d/%m/%Y %H:%M:%S'
+    )                                               as answered_at_repr
 from source
 -- Dédoublonnage : si un couple a été rejoué, on garde la réponse la plus récente
 qualify row_number() over (

@@ -49,8 +49,7 @@ Règles :
 > **Silver et gold ne sont pas encore construites.** Les dossiers `silver/`
 > et `gold/` sont des emplacements réservés. À trancher au moment de
 > construire dbt : avec dbt-duckdb, les couches silver et gold vivent
-> naturellement comme **schémas dans une base DuckDB** (`intermediate`, `marts`) plutôt que comme fichiers. L'emplacement du
-> `staging` reste inutiliser et le dossier reste vide pour l'instant.
+> naturellement comme **schémas dans une base DuckDB** (`staging`, `intermediate`, `marts`) plutôt que comme fichiers. L'emplacement du
 > fichier `.duckdb` (ex. `silver/warehouse.duckdb` ou à la racine) devra être
 > fixé dans `profiles.yml` et repris par l'application Streamlit.
 

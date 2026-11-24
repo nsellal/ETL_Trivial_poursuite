@@ -67,8 +67,8 @@ identifiant calculé** :
 | Python (`run_benchmark.py`) | `hashlib.md5(f"{question}\|{correct_answer}".encode("utf-8")).hexdigest()[:12]` |
 | SQL DuckDB (staging dbt)  | `left(md5(url_decode(question) \|\| '\|' \|\| url_decode(correct_answer)), 12)`   |
 
-**Vérifié** sur les données réelles : les 5 297 réponses de
-`ai_answers_raw.csv` se joignent toutes à un `question_id` calculé en SQL
+**Vérifié** sur les données réelles : les 10 594 réponses de
+`ai_answers_raw.csv` (2 runs) se joignent toutes à un `question_id` calculé en SQL
 depuis `questions_raw_1795440205.csv` (aucune réponse orpheline).
 
 Points d'attention :
@@ -172,8 +172,16 @@ dans le même fichier.
 | `response_time`   | décimal   | Temps de génération en secondes (`time.perf_counter`)              |
 | `answered_at`     | horodatage | Date/heure UTC ISO 8601 de la réponse                             |
 
-Contenu actuel : **5 297 réponses**, `google/gemma-4-12b-qat` × `v2_strict`
-(précision 72,4 %, 7 réponses inexploitables, temps médian 0,83 s).
+Contenu actuel : **10 594 réponses**, 2 runs complets de 5 297 réponses
+(aucun doublon sur la clé unique) :
+
+| Modèle                   | Prompt      | Réponses | Précision | Inexploitables | Temps médian | Date du run |
+|--------------------------|-------------|---------:|----------:|---------------:|-------------:|-------------|
+| `google/gemma-4-12b-qat` | `v2_strict` |    5 297 |    72,4 % |              7 |       0,83 s | 2026-11-23  |
+| `prism-ml/bonsai-27b`    | `v2_strict` |    5 297 |    59,5 % |             46 |       0,37 s | 2026-11-24  |
+
+> Les temps de réponse dépendent de la machine qui fait tourner LM Studio :
+> ils ne sont comparables qu'entre runs faits sur la même machine.
 
 ## Composants
 

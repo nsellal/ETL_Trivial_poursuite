@@ -1,0 +1,50 @@
+version: 2
+
+# Une table par modèle d'IA : answers_<modèle>.
+# Toutes ont les mêmes colonnes (macro answers_for_model).
+# Ajouter un modèle d'IA : copier un fichier answers_<modèle>.sql en changeant
+# l'identifiant, puis copier son bloc ci-dessous.
+# Lancer les tests : dbt test --profiles-dir . --select intermediate
+
+models:
+  - name: answers_gemma_4_12b_qat
+    description: "Réponses de google/gemma-4-12b-qat jointes à leurs questions. 1 ligne = 1 réponse (question × prompt)."
+    data_tests:
+      - not_empty
+    columns:
+      - name: answer_id
+        description: "Clé : question_id|model|prompt_id."
+        data_tests: [unique, not_null]
+      - name: model
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["google/gemma-4-12b-qat"]
+      - name: question
+        description: "Texte de la question (non nul : la jointure a trouvé la question)."
+        data_tests: [not_null]
+      - name: is_unparsable
+        description: "True si aucune lettre n'a pu être extraite de la réponse."
+      - name: random_baseline
+        description: "Probabilité de répondre juste au hasard : 1 / nb_choices (0,25 ou 0,5)."
+
+  - name: answers_bonsai_27b
+    description: "Réponses de prism-ml/bonsai-27b jointes à leurs questions. 1 ligne = 1 réponse (question × prompt)."
+    data_tests:
+      - not_empty
+    columns:
+      - name: answer_id
+        description: "Clé : question_id|model|prompt_id."
+        data_tests: [unique, not_null]
+      - name: model
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["prism-ml/bonsai-27b"]
+      - name: question
+        description: "Texte de la question (non nul : la jointure a trouvé la question)."
+        data_tests: [not_null]
+      - name: is_unparsable
+        description: "True si aucune lettre n'a pu être extraite de la réponse."
+      - name: random_baseline
+        description: "Probabilité de répondre juste au hasard : 1 / nb_choices (0,25 ou 0,5)."

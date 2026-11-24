@@ -63,9 +63,12 @@ Règles :
 > **Emplacements retenus :**
 >
 > - `silver/*.parquet` : produits par `src/bronze_to_silver.py`, un Parquet
->   par CSV bronze (même nom, textes décodés, typé et compressé). Ce sont
->   les **sources lues par dbt** (`read_parquet` dans `_sources.yml`) : lancer
->   ce script avant `dbt run`.
+>   par CSV bronze (textes décodés, typé et compressé). **Nom = nom du CSV
+>   sans `raw`** : `questions_raw_<ts>.csv` → `questions_<ts>.parquet`,
+>   `ai_answers_raw.csv` → `ai_answers.parquet`. Ce sont les **sources lues
+>   par dbt** (source `silver`, tables `questions` et `ai_answers` dans
+>   `_sources.yml`, appelées avec `{{ source('silver', 'questions') }}`) :
+>   lancer ce script avant `dbt run`.
 > - `gold/warehouse.duckdb` : base DuckDB construite par dbt (chemin fixé dans
 >   `profiles.yml`, repris par `config.WAREHOUSE_PATH` pour Streamlit). Elle
 >   contient les schémas `staging`, `intermediate` et `marts` (couche gold,
@@ -111,8 +114,16 @@ Points d'attention :
   `dbt_project.yml`), structure classique :
   - `staging/` : une vue par source bronze (décodage, typage, `question_id`,
     dédoublonnage) ;
-  - `intermediate/` : jointure réponses × questions et colonnes dérivées
-    (ex. `random_baseline` = 1 / nombre de choix, `is_unparsable`) ;
+  - `intermediate/` : **une table par modèle d'IA**, `answers_<modèle>`
+    (ex. `answers_gemma_4_12b_qat`, `answers_bonsai_27b`) : réponses de ce
+    modèle jointes à `stg_questions`, avec les colonnes dérivées
+    `is_unparsable` et `random_baseline` (= 1 / nombre de choix). Toutes
+    sont générées par la macro `answers_for_model('<id LM Studio>')`
+    (`src/macros/answers_for_model.sql`) : **ajouter un modèle d'IA = un
+    fichier `answers_<modèle>.sql` d'une ligne + son bloc dans
+    `_answers_by_model.yml`**. Test `not_empty` (macro
+    `src/macros/test_not_empty.sql`) : une faute dans l'identifiant du
+    modèle donnerait sinon une table vide sans erreur ;
   - `marts/` : tables finales gold (classement modèle × prompt, précision par
     catégorie, par difficulté...).
 - Sources : les Parquet de `silver/` (conversion des CSV bronze par
@@ -133,7 +144,9 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 `dbt debug --profiles-dir .` passe (connexion DuckDB OK).
 
 `model-paths` et `macro-paths` pointent vers `src/models` et `src/macros`
-(les modèles et la macro `generate_schema_name` sont rangés dans `src/`).
+(les modèles et les macros sont rangés dans `src/`).
+
+`dbt build --profiles-dir .` : **37 PASS** (staging + intermediate).
 
 ## Arborescence
 
@@ -146,6 +159,8 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 │   ├── questions_raw_<ts>.csv   # sortie de extract_bronze.py
 │   └── ai_answers_raw.csv       # sortie de run_benchmark.py
 ├── silver/                      # Parquet produits par bronze_to_silver.py
+│   ├── questions_<ts>.parquet   # questions décodées
+│   └── ai_answers.parquet       # réponses des LLM
 ├── gold/
 │   └── warehouse.duckdb         # base DuckDB construite par dbt (non versionnée)
 ├── src/
@@ -155,7 +170,11 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 │   ├── prompts.py               # prompts versionnés du benchmark
 │   ├── run_benchmark.py         # questions → LLM → ai_answers_raw.csv
 │   ├── test_llm.py              # test manuel d'un appel au modèle local
-│   └── models/                  # modèles dbt (staging / intermediate / marts), vides
+│   ├── macros/                  # macros dbt (schéma, answers_for_model, test not_empty)
+│   └── models/
+│       ├── staging/             # stg_questions, stg_ai_answers
+│       ├── intermediate/        # answers_<modèle> : une table par IA
+│       └── marts/               # vide
 ├── dbt_project.yml              # projet dbt (profil trivial_pst)
 ├── profiles.yml                 # connexion DuckDB → gold/warehouse.duckdb
 └── requirements.txt
@@ -185,7 +204,7 @@ Les textes sont en **`url3986`** (RFC 3986) : sans perte, sans virgule,
 guillemet ni retour à la ligne, donc le CSV ne peut pas être cassé. Décodage
 fait une seule fois, en silver, par `src/bronze_to_silver.py`.
 
-Différences dans `silver/questions_raw_<ts>.parquet` : textes décodés en
+Différences dans `silver/questions_<ts>.parquet` : textes décodés en
 UTF-8, `incorrect_answers` en liste (`VARCHAR[]`), `scraped_at` en timestamp
 Unix (secondes, `BIGINT`), plus de colonne `encoding`.
 
@@ -214,7 +233,7 @@ dans le même fichier.
 | `response_time`   | décimal   | Temps de génération en secondes (`time.perf_counter`)              |
 | `answered_at`     | horodatage | Date/heure UTC ISO 8601 de la réponse                             |
 
-Différence dans `silver/ai_answers_raw.parquet` : `answered_at` en timestamp
+Différence dans `silver/ai_answers.parquet` : `answered_at` en timestamp
 Unix (secondes, `BIGINT`).
 
 Contenu actuel : **10 594 réponses**, 2 runs complets de 5 297 réponses

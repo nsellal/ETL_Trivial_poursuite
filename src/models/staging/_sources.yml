@@ -2,12 +2,13 @@ version: 2
 
 sources:
   # Les Parquet de silver/ sont produits par src/bronze_to_silver.py
-  # (à lancer avant dbt run). Contenu identique aux CSV bronze, mais typé.
+  # (à lancer avant dbt run) : textes décodés en UTF-8, dates en timestamp
+  # Unix (secondes), colonne encoding supprimée.
   - name: bronze
-    description: "Données bronze converties en Parquet dans silver/ (textes encore encodés url3986)."
+    description: "Données bronze converties en Parquet dans silver/ (textes décodés, dates en timestamp Unix)."
     tables:
       - name: questions_raw
-        description: "Questions OpenTDB (src/extract_bronze.py), textes encodés url3986."
+        description: "Questions OpenTDB (src/extract_bronze.py), textes décodés, incorrect_answers en liste."
         meta:
           # Motif : lit toutes les extractions, dédoublonnées ensuite en staging
           external_location: "read_parquet('silver/questions_raw_*.parquet')"

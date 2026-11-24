@@ -20,7 +20,7 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
       └───────────────┬────────────────────────┘
                       │ src/bronze_to_silver.py
                       ▼
-          silver/*.parquet  (conversion typée des CSV)
+          silver/*.parquet  (textes décodés, dates en timestamp Unix)
                       │ dbt + DuckDB (src/models/)      [à faire]
                       ▼
           gold/warehouse.duckdb
@@ -35,7 +35,7 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
 | Couche   | Emplacement                          | Contenu                                                        | État        |
 |----------|--------------------------------------|----------------------------------------------------------------|-------------|
 | Bronze   | `bronze/` (CSV versionnés)           | Données brutes telles que renvoyées par les sources            | En place    |
-| Silver   | `silver/` (parquet)          | Parquet typés, conversion des CSV bronze                       | À faire     |
+| Silver   | `silver/` (parquet)          | Parquet typés : textes décodés, dates en timestamp Unix        | En place    |
 | Gold     | `gold/warehouse.duckdb`      | Base DuckDB dbt : staging → intermediate → marts               | À faire     |
 
 Règles :
@@ -43,16 +43,27 @@ Règles :
 - **Bronze reste brute** : aucune transformation dans les scripts qui
   écrivent en bronze. Les questions sont stockées telles que l'API les
   renvoie ; les réponses telles que le modèle les produit.
-- **Silver** : conversion en Parquet (typé, compressé), sans modifier le
-  contenu (textes encore encodés, doublons conservés).
-- **Gold** : nettoyage en staging (décodage `url3986`, calcul du
-  `question_id`, dédoublonnage, typage), jointures en intermediate, agrégats
-  prêts à l'analyse et au dashboard en marts.
+- **Silver** (`src/bronze_to_silver.py`) : conversion en Parquet (typé,
+  compressé), avec trois transformations, toutes les lignes conservées
+  (doublons compris) :
+  - **dates** (`scraped_at`, `answered_at`, toute colonne `*_at`) →
+    **timestamp Unix en secondes** (entier UTC, fractions tronquées) ;
+  - **textes url3986 → UTF-8** (`category`, `question`, `correct_answer`,
+    éléments de `incorrect_answers`) avec `urllib.parse.unquote` en mode
+    strict, et **vérification aller-retour** (`quote(décodé, safe="") ==
+    original`) : le script s'arrête plutôt que de perdre une donnée ;
+  - `incorrect_answers` : liste JSON → vraie liste (`VARCHAR[]`) ; colonne
+    **`encoding` supprimée** (les textes ne sont plus encodés).
+- **Gold** : nettoyage en staging (calcul du `question_id`, dédoublonnage,
+  typage), jointures en intermediate, agrégats prêts à l'analyse et au
+  dashboard en marts. **Pas de `url_decode` en staging** : les textes sont
+  déjà décodés, un second décodage abîmerait les textes contenant `%`
+  (8 questions, ex. « 78% »).
 
 > **Emplacements retenus :**
 >
 > - `silver/*.parquet` : produits par `src/bronze_to_silver.py`, un Parquet
->   par CSV bronze (même nom, même contenu, mais typé et compressé). Ce sont
+>   par CSV bronze (même nom, textes décodés, typé et compressé). Ce sont
 >   les **sources lues par dbt** (`read_parquet` dans `_sources.yml`) : lancer
 >   ce script avant `dbt run`.
 > - `gold/warehouse.duckdb` : base DuckDB construite par dbt (chemin fixé dans
@@ -72,23 +83,25 @@ identifiant calculé** :
 | Où                       | Calcul                                                                          |
 |--------------------------|---------------------------------------------------------------------------------|
 | Python (`run_benchmark.py`) | `hashlib.md5(f"{question}\|{correct_answer}".encode("utf-8")).hexdigest()[:12]` |
-| SQL DuckDB (staging dbt)  | `left(md5(url_decode(question) \|\| '\|' \|\| url_decode(correct_answer)), 12)`   |
+| SQL DuckDB (staging dbt)  | `left(md5(question \|\| '\|' \|\| correct_answer), 12)` (textes déjà décodés en silver) |
 
-**Vérifié** sur les données réelles : les 10 594 réponses de
-`ai_answers_raw.csv` (2 runs) se joignent toutes à un `question_id` calculé en SQL
-depuis `questions_raw_1795440205.csv` (aucune réponse orpheline).
+**Vérifié** sur les données réelles : les 5 297 `question_id` de
+`stg_questions` sont identiques à ceux calculés en Python, et les 10 594
+réponses de `ai_answers_raw.csv` (2 runs) s'y joignent toutes (test
+`relationships` de dbt, aucune réponse orpheline).
 
 Points d'attention :
 
-- Décoder **avant** de hacher (`url_decode` en SQL, `unquote` en Python) ;
-  hacher le texte encodé donnerait des identifiants différents.
+- Hacher le texte **décodé** (fait en silver par `bronze_to_silver.py`,
+  `unquote` dans `run_benchmark.py`) ; hacher le texte encodé donnerait des
+  identifiants différents.
 - Le séparateur est `|`, sans espace.
 - Le CSV source contient **2 doublons** (même question, même bonne réponse) :
   5 299 lignes mais 5 297 `question_id` distincts. La transformation en vers la couche silver doit
   dédoublonner (`qualify row_number() over (partition by question_id order
   by scraped_at) = 1`) avant de tester `unique` sur `question_id`.
-- Aucun caractère `+` brut dans les textes encodés : `url_decode` (DuckDB) et
-  `unquote` (Python) donnent donc exactement le même texte.
+- Aucun caractère `+` brut dans les textes encodés : le décodage ne dépend
+  donc pas de l'interprétation de `+` (espace ou non).
 
 ## Transformation (dbt) — à faire
 
@@ -170,7 +183,11 @@ lancement : un nouveau fichier par exécution, jamais d'écrasement.
 
 Les textes sont en **`url3986`** (RFC 3986) : sans perte, sans virgule,
 guillemet ni retour à la ligne, donc le CSV ne peut pas être cassé. Décodage
-avec `url_decode` (DuckDB) ou `urllib.parse.unquote` (Python).
+fait une seule fois, en silver, par `src/bronze_to_silver.py`.
+
+Différences dans `silver/questions_raw_<ts>.parquet` : textes décodés en
+UTF-8, `incorrect_answers` en liste (`VARCHAR[]`), `scraped_at` en timestamp
+Unix (secondes, `BIGINT`), plus de colonne `encoding`.
 
 Dernière extraction (`questions_raw_1795440205.csv`) : **5 299 questions**
 (5 297 `question_id` distincts), 24 catégories ; 4 510 `multiple` /
@@ -197,6 +214,9 @@ dans le même fichier.
 | `response_time`   | décimal   | Temps de génération en secondes (`time.perf_counter`)              |
 | `answered_at`     | horodatage | Date/heure UTC ISO 8601 de la réponse                             |
 
+Différence dans `silver/ai_answers_raw.parquet` : `answered_at` en timestamp
+Unix (secondes, `BIGINT`).
+
 Contenu actuel : **10 594 réponses**, 2 runs complets de 5 297 réponses
 (aucun doublon sur la clé unique) :
 
@@ -213,7 +233,7 @@ Contenu actuel : **10 594 réponses**, 2 runs complets de 5 297 réponses
 | Fichier                 | Rôle                                                          |
 |-------------------------|---------------------------------------------------------------|
 | `src/config.py`         | Chemins (`BRONZE_DIR`, `AI_ANSWERS_RAW_CSV`, `latest_questions_csv()`, `SILVER_DIR`, `GOLD_DIR`, `WAREHOUSE_PATH`) et config du LLM |
-| `src/bronze_to_silver.py` | Conversion des CSV bronze en Parquet dans `silver/`         |
+| `src/bronze_to_silver.py` | CSV bronze → Parquet `silver/` : décodage url3986 vérifié, dates en timestamp Unix, suppression de `encoding` |
 | `src/extract_bronze.py` | Scraping complet d'OpenTDB vers la couche bronze              |
 | `src/prompts.py`        | Prompts versionnés (`PROMPTS`, `DEFAULT_PROMPT_ID`)           |
 | `src/run_benchmark.py`  | Questions → LLM → `ai_answers_raw.csv` (reprise automatique)  |

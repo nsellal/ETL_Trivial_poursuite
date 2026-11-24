@@ -5,22 +5,21 @@ with source as (
     select * from {{ source('bronze', 'questions_raw') }}
 ),
 
--- Décodage url3986 des textes (sans trim : le hash doit être calculé
--- sur le même texte que dans run_benchmark.py)
+-- Les textes arrivent déjà décodés (url3986 -> UTF-8) par
+-- src/bronze_to_silver.py, et incorrect_answers est déjà une liste.
+-- Ne PAS rappeler url_decode : un texte contenant '%' serait abîmé.
+-- (Sans trim ici : le hash doit être calculé sur le même texte que dans
+-- run_benchmark.py)
 decoded as (
     select
         cast(category_id as integer)        as category_id,
-        url_decode(category)                as category,
+        category,
         type,
         difficulty,
-        url_decode(question)                as question,
-        url_decode(correct_answer)          as correct_answer,
-        -- liste JSON de textes encodés -> liste de textes décodés
-        list_transform(
-            cast(incorrect_answers::json as varchar[]),
-            lambda x: url_decode(x)
-        )                                   as incorrect_answers,
-        scraped_at
+        question,
+        correct_answer,
+        incorrect_answers,
+        scraped_at                          -- timestamp Unix (secondes)
     from source
 ),
 

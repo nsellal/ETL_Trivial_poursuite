@@ -1,0 +1,86 @@
+version: 2
+
+# Documentation et tests du modèle stg_obt_answers.
+# Lancer les tests : dbt test --profiles-dir . --select stg_obt_answers
+models:
+  - name: stg_obt_answers
+    description: "OBT silver nettoyée. 1 ligne = 1 réponse (question × modèle × prompt)."
+    data_tests:
+      - not_empty
+    columns:
+      - name: answer_id
+        description: "Clé : question_id|model|prompt_id."
+        data_tests: [unique, not_null]   # le dédoublonnage Python a fonctionné
+
+      - name: question_id
+        description: "12 premiers caractères du MD5 de question|correct_answer."
+        data_tests: [not_null]
+
+      - name: model
+        description: "Nom du modèle dans LM Studio."
+        data_tests: [not_null]
+
+      - name: prompt_id
+        description: "Version du prompt (ex. v2_strict)."
+        data_tests: [not_null]
+
+      - name: category
+        data_tests: [not_null]
+
+      - name: category_group
+        description: "Partie avant ':' de la catégorie."
+        data_tests: [not_null]
+
+      - name: type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["multiple", "boolean"]
+
+      - name: difficulty
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["easy", "medium", "hard"]
+
+      - name: question
+        description: "Non nul : la jointure Python a trouvé la question."
+        data_tests: [not_null]
+
+      - name: correct_answer
+        data_tests: [not_null]
+
+      - name: expected_letter
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["A", "B", "C", "D"]
+
+      - name: ai_answer
+        description: "Lettre extraite, NULL si inexploitable (les NULL sont ignorés par le test)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["A", "B", "C", "D"]
+
+      - name: ai_correct
+        data_tests: [not_null]
+
+      - name: response_time
+        data_tests: [not_null]
+
+      - name: answered_at
+        description: "Date de la réponse, timestamp Unix en secondes (UTC)."
+        data_tests: [not_null]
+
+      - name: answered_at_repr
+        description: "Date de la réponse au format français, heure de Paris : 'JJ/MM/AAAA HH:MM:SS'."
+        data_tests: [not_null]
+
+      - name: scraped_at
+        description: "Date d'extraction de la question, timestamp Unix en secondes (UTC)."
+        data_tests: [not_null]
+
+      - name: scraped_at_repr
+        description: "Date d'extraction au format français, heure de Paris : 'JJ/MM/AAAA HH:MM:SS'."
+        data_tests: [not_null]

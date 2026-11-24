@@ -1,24 +1,29 @@
-"""Conversion bronze -> silver : chaque CSV de bronze/ devient un Parquet dans silver/,
-sans le mot 'raw' dans son nom (ex. ai_answers_raw.csv -> ai_answers.parquet).
+"""Bronze -> silver : fusionne questions et réponses des IA en une seule table
+(One Big Table) écrite dans silver/obt_answers.parquet.
+
+Grain : 1 ligne = 1 réponse d'un modèle, avec un prompt, à une question,
+enrichie de toutes les informations de sa question.
 
 Transformations appliquées (la couche bronze n'est jamais modifiée) :
   - dates (scraped_at, answered_at) -> timestamp Unix en secondes (entier) ;
   - textes des questions encodés url3986 -> texte UTF-8 lisible, décodage
     vérifié sans perte ; la colonne `encoding` est alors supprimée ;
-  - incorrect_answers : liste JSON de textes encodés -> vraie liste de textes.
+  - incorrect_answers : liste JSON de textes encodés -> vraie liste de textes ;
+  - question_id (même calcul que run_benchmark.py) et dédoublonnage ;
+  - jointure réponses × questions, avec contrôle : aucune réponse perdue
+    ni dupliquée.
 
-Le reste du nettoyage (typage métier, question_id, dédoublonnage) est fait
-ensuite par dbt (staging).
+Le typage métier et les colonnes dérivées sont faits ensuite par dbt (staging).
 """
 
+import hashlib
 import json
-import re
 from urllib.parse import quote, unquote
 
 import duckdb
 import pandas as pd
 
-from config import BRONZE_DIR, SILVER_DIR
+from config import AI_ANSWERS_RAW_CSV, SILVER_DIR, latest_questions_csv
 
 # Colonnes texte encodées en url3986 dans questions_raw_*.csv
 URL3986_COLUMNS = ["category", "question", "correct_answer"]
@@ -26,15 +31,8 @@ URL3986_LIST_COLUMN = "incorrect_answers"  # liste JSON de textes encodés
 ENCODING_COLUMN = "encoding"
 EXPECTED_ENCODING = "url3986"
 
-
-def silver_name(csv_path):
-    """Nom du Parquet silver : celui du CSV bronze sans le mot 'raw'
-    (les données ne sont plus brutes).
-    ex. questions_raw_1795440205.csv -> questions_1795440205.parquet
-        ai_answers_raw.csv           -> ai_answers.parquet
-    """
-    stem = re.sub(r"_raw(?=_|$)", "", csv_path.stem)
-    return f"{stem}.parquet"
+# Unique fichier de la couche silver
+OBT_PARQUET = SILVER_DIR / "obt_answers.parquet"
 
 
 def to_unix_seconds(dates):
@@ -93,34 +91,73 @@ def transform(df):
     return df
 
 
-def convert_csv_to_parquet(con, csv_path, parquet_path):
-    """Lit un CSV (types détectés par DuckDB), le transforme et l'écrit en Parquet."""
-    df = con.execute("SELECT * FROM read_csv(?)", [str(csv_path)]).df()
-    silver = transform(df)
-    con.register("silver_df", silver)
-    con.execute(f"COPY silver_df TO '{parquet_path}' (FORMAT parquet)")
-    con.unregister("silver_df")
+def question_id(question, correct_answer):
+    """Identifiant de question, MÊME calcul que run_benchmark.py :
+    12 premiers caractères du MD5 de 'question|correct_answer' (textes décodés)."""
+    return hashlib.md5(f"{question}|{correct_answer}".encode("utf-8")).hexdigest()[:12]
 
-    # Vérification : même nombre de lignes avant et après
-    nb_parquet = con.execute("SELECT count(*) FROM read_parquet(?)", [str(parquet_path)]).fetchone()[0]
-    if len(df) != nb_parquet:
-        raise ValueError(f"{csv_path.name} : {len(df)} lignes en CSV mais {nb_parquet} en Parquet")
-    return nb_parquet
+
+def prepare_questions(df):
+    """Questions : décodage, question_id, puis dédoublonnage.
+    En cas de doublon, on garde l'extraction la plus récente."""
+    df = transform(df)
+    df["question_id"] = [
+        question_id(q, a) for q, a in zip(df["question"], df["correct_answer"])
+    ]
+    df = df.sort_values("scraped_at").drop_duplicates("question_id", keep="last")
+    return df
+
+
+def prepare_answers(df):
+    """Réponses : dates converties, puis dédoublonnage.
+    Si un couple question × modèle × prompt a été rejoué, on garde le plus récent."""
+    df = transform(df)
+    df = df.sort_values("answered_at").drop_duplicates(
+        ["question_id", "model", "prompt_id"], keep="last"
+    )
+    return df
+
+
+def build_obt(questions, answers):
+    """One Big Table : chaque réponse enrichie des informations de sa question.
+    Grain : 1 ligne = 1 réponse (question × modèle × prompt)."""
+    # validate="many_to_one" : plante si une question est en double
+    # (sinon la jointure dupliquerait des réponses)
+    obt = answers.merge(questions, on="question_id", how="inner", validate="many_to_one")
+
+    # Chaque réponse doit avoir trouvé sa question (remplace le test relationships de dbt)
+    if len(obt) != len(answers):
+        raise ValueError(
+            f"{len(answers) - len(obt)} réponses sans question correspondante"
+        )
+    return obt
+
+
+def read_csv(con, csv_path):
+    """Lit un CSV avec DuckDB (types détectés automatiquement)."""
+    return con.execute("SELECT * FROM read_csv(?)", [str(csv_path)]).df()
 
 
 def main():
     SILVER_DIR.mkdir(exist_ok=True)
-    csv_files = sorted(BRONZE_DIR.glob("*.csv"))
-    if not csv_files:
-        raise FileNotFoundError(f"Aucun CSV dans {BRONZE_DIR}")
-
     # Connexion DuckDB en mémoire : on ne touche pas au warehouse
     con = duckdb.connect()
-    for csv_path in csv_files:
-        parquet_path = SILVER_DIR / silver_name(csv_path)
-        nb = convert_csv_to_parquet(con, csv_path, parquet_path)
-        print(f"{csv_path.name} -> silver/{parquet_path.name} ({nb} lignes)")
+
+    questions = prepare_questions(read_csv(con, latest_questions_csv()))
+    answers = prepare_answers(read_csv(con, AI_ANSWERS_RAW_CSV))
+    obt = build_obt(questions, answers)
+
+    con.register("obt_df", obt)
+    con.execute(f"COPY obt_df TO '{OBT_PARQUET}' (FORMAT parquet)")
+    con.unregister("obt_df")
+
+    # Vérification : même nombre de lignes en mémoire et dans le Parquet
+    nb_parquet = con.execute("SELECT count(*) FROM read_parquet(?)", [str(OBT_PARQUET)]).fetchone()[0]
     con.close()
+    if nb_parquet != len(obt):
+        raise ValueError(f"{len(obt)} lignes en mémoire mais {nb_parquet} dans le Parquet")
+
+    print(f"{len(questions)} questions × {len(answers)} réponses -> silver/{OBT_PARQUET.name} ({nb_parquet} lignes)")
 
 
 if __name__ == "__main__":

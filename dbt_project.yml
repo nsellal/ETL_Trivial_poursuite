@@ -10,5 +10,12 @@ macro-paths: ["src/macros"]
 
 models:
   trivial_poursuite:
+    staging:
+      +schema: staging
+      +materialized: view     # simple requête, rien de stocké
+    intermediate:
+      +schema: intermediate
+      +materialized: table    # lue par tous les marts et Streamlit
     marts:
+      +schema: marts
       +materialized: table

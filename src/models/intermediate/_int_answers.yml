@@ -1,0 +1,34 @@
+version: 2
+
+# Lancer les tests : dbt test --profiles-dir . --select int_answers
+models:
+  - name: int_answers
+    description: "Réponses des IA enrichies (colonnes dérivées). 1 ligne = 1 réponse. Lue par les marts et Streamlit."
+    data_tests:
+      - not_empty
+    columns:
+      - name: answer_id
+        description: "Clé : question_id|model|prompt_id."
+        data_tests: [unique, not_null]
+
+      - name: nb_choices
+        description: "Nombre de choix proposés : 4 (QCM) ou 2 (vrai/faux)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [2, 4]
+                quote: false   # nombres, pas du texte
+
+      - name: is_unparsable
+        description: "True si aucune lettre n'a pu être extraite de la réponse."
+        data_tests: [not_null]
+
+      - name: random_baseline
+        description: "Probabilité de répondre juste au hasard : 1 / nb_choices (0,25 ou 0,5)."
+        data_tests: [not_null]
+
+      - name: question_length
+        description: "Longueur de la question en caractères."
+
+      - name: output_length
+        description: "Longueur de la réponse brute du modèle en caractères."

@@ -1,19 +1,13 @@
 version: 2
 
 sources:
-  # Les Parquet de silver/ sont produits par src/bronze_to_silver.py
-  # (à lancer avant dbt run) : textes décodés en UTF-8, dates en timestamp
-  # Unix (secondes), colonne encoding supprimée, plus de 'raw' dans les noms.
+  # silver/obt_answers.parquet est produit par src/bronze_to_silver.py
+  # (à lancer avant dbt run) : questions et réponses déjà fusionnées,
+  # textes décodés, dates en timestamp Unix, doublons retirés.
   - name: silver
-    description: "Données bronze converties en Parquet dans silver/ (textes décodés, dates en timestamp Unix)."
+    description: "Couche silver : One Big Table des réponses des IA enrichies de leurs questions."
     tables:
-      - name: questions
-        description: "Questions OpenTDB (src/extract_bronze.py), textes décodés, incorrect_answers en liste."
+      - name: obt_answers
+        description: "1 ligne = 1 réponse (question × modèle × prompt), avec toutes les infos de la question."
         meta:
-          # Motif : lit toutes les extractions, dédoublonnées ensuite en staging
-          external_location: "read_parquet('silver/questions_*.parquet')"
-
-      - name: ai_answers
-        description: "Réponses des LLM (src/run_benchmark.py), 1 ligne = question × modèle × prompt."
-        meta:
-          external_location: "read_parquet('silver/ai_answers.parquet')"
+          external_location: "read_parquet('silver/obt_answers.parquet')"

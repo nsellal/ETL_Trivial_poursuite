@@ -2,7 +2,12 @@ name: trivial_poursuite # nom du projet (snake_case)
 version: "1.0.0"
 config-version: 2
 
-profile: trivial_poursuite
+profile: trivial_pst
 
 # Où dbt cherche les fichiers
 model-paths: ["models"]
+
+models:
+  trivial_poursuite:
+    marts:
+      +materialized: table

@@ -1,7 +1,8 @@
-trivial_poursuite: # = valeur de `profile` dans dbt_project.yml
+trivial_pst: # = valeur de `profile` dans dbt_project.yml
   target: dev
+
   outputs:
     dev:
       type: duckdb
-      path: data/trivial.duckdb
+      path: gold/warehouse.duckdb
       threads: 4

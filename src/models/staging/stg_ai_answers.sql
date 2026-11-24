@@ -4,7 +4,7 @@
 -- Pas de décodage ici : run_benchmark.py a écrit les textes déjà décodés.
 
 with source as (
-    select * from {{ source('bronze', 'ai_answers_raw') }}
+    select * from {{ source('silver', 'ai_answers') }}
 )
 
 select

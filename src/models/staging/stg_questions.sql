@@ -2,7 +2,7 @@
 -- 1 ligne = 1 question unique (clé : question_id).
 
 with source as (
-    select * from {{ source('bronze', 'questions_raw') }}
+    select * from {{ source('silver', 'questions') }}
 ),
 
 -- Les textes arrivent déjà décodés (url3986 -> UTF-8) par

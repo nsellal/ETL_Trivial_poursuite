@@ -1,4 +1,5 @@
-"""Conversion bronze -> silver : chaque CSV de bronze/ devient un Parquet dans silver/.
+"""Conversion bronze -> silver : chaque CSV de bronze/ devient un Parquet dans silver/,
+sans le mot 'raw' dans son nom (ex. ai_answers_raw.csv -> ai_answers.parquet).
 
 Transformations appliquées (la couche bronze n'est jamais modifiée) :
   - dates (scraped_at, answered_at) -> timestamp Unix en secondes (entier) ;
@@ -11,6 +12,7 @@ ensuite par dbt (staging).
 """
 
 import json
+import re
 from urllib.parse import quote, unquote
 
 import duckdb
@@ -23,6 +25,16 @@ URL3986_COLUMNS = ["category", "question", "correct_answer"]
 URL3986_LIST_COLUMN = "incorrect_answers"  # liste JSON de textes encodés
 ENCODING_COLUMN = "encoding"
 EXPECTED_ENCODING = "url3986"
+
+
+def silver_name(csv_path):
+    """Nom du Parquet silver : celui du CSV bronze sans le mot 'raw'
+    (les données ne sont plus brutes).
+    ex. questions_raw_1795440205.csv -> questions_1795440205.parquet
+        ai_answers_raw.csv           -> ai_answers.parquet
+    """
+    stem = re.sub(r"_raw(?=_|$)", "", csv_path.stem)
+    return f"{stem}.parquet"
 
 
 def to_unix_seconds(dates):
@@ -105,7 +117,7 @@ def main():
     # Connexion DuckDB en mémoire : on ne touche pas au warehouse
     con = duckdb.connect()
     for csv_path in csv_files:
-        parquet_path = SILVER_DIR / f"{csv_path.stem}.parquet"
+        parquet_path = SILVER_DIR / silver_name(csv_path)
         nb = convert_csv_to_parquet(con, csv_path, parquet_path)
         print(f"{csv_path.name} -> silver/{parquet_path.name} ({nb} lignes)")
     con.close()

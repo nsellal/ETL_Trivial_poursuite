@@ -170,7 +170,9 @@ def main():
 
     # Mode "a" (ajout) : on complète le fichier sans jamais l'écraser
     with open(AI_ANSWERS_RAW_CSV, "a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=COLUMNS)
+        # lineterminator="\n" : fins de ligne Unix partout (par défaut csv écrit "\r\n",
+        # et un mélange des deux fait planter le read_csv de DuckDB)
+        writer = csv.DictWriter(file, fieldnames=COLUMNS, lineterminator="\n")
         if write_header:
             writer.writeheader()
 

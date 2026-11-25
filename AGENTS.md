@@ -37,8 +37,8 @@ données, changement de schéma, nouveau script) doit être reportée dans
 | Autres runs (prompts, 2ᵉ modèle)        | À faire                                 |
 | dbt silver (staging, intermediate)      | À faire                                 |
 | dbt gold (marts)                        | À faire                                 |
-| Application Streamlit                   | À faire                                 |
-| README (méthodologie, setup)            | À faire                                 |
+| Application Streamlit                   | Fait : `src/app.py` (8 onglets)         |
+| README (méthodologie, setup)            | Fait : `README.md`                      |
 
 ## Environnement
 

@@ -1,0 +1,13 @@
+# Configuration Streamlit du dashboard (lu quand Streamlit est lancé depuis la racine)
+
+[theme]
+# Thème sombre par défaut. Bascule clair / sombre : menu « ⋮ » en haut à
+# droite > Settings. Ne pas ajouter de sections [theme.light] / [theme.dark] :
+# avec elles, Streamlit suit le réglage du système au lieu d'ouvrir en sombre.
+base = "dark"
+primaryColor = "#4C78A8"
+font = "sans-serif"
+
+[browser]
+# Pas d'envoi de statistiques d'usage à Streamlit
+gatherUsageStats = false

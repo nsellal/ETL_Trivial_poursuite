@@ -247,13 +247,16 @@ dans le même fichier.
 | `response_time`   | décimal   | Temps de génération en secondes (`time.perf_counter`)              |
 | `answered_at`     | horodatage | Date/heure UTC ISO 8601 de la réponse                             |
 
-Contenu actuel : **10 594 réponses**, 2 runs complets de 5 297 réponses
+Contenu actuel : **26 485 réponses**, 5 runs complets de 5 297 réponses
 (aucun doublon sur la clé unique) :
 
 | Modèle                   | Prompt      | Réponses | Précision | Inexploitables | Temps médian | Date du run |
 |--------------------------|-------------|---------:|----------:|---------------:|-------------:|-------------|
 | `google/gemma-4-12b-qat` | `v2_strict` |    5 297 |    72,4 % |              7 |       0,83 s | 2026-11-23  |
+| `google/gemma-4-12b-qat` | `v1_simple` |    5 297 |    62,0 % |            980 |       0,90 s | 2026-11-25  |
 | `prism-ml/bonsai-27b`    | `v2_strict` |    5 297 |    59,5 % |             46 |       0,37 s | 2026-11-24  |
+| `qwen/qwen3.5-9b`        | `v2_strict` |    5 297 |    71,7 % |              3 |       0,37 s | 2026-11-25  |
+| `qwen/qwen3.5-9b`        | `v1_simple` |    5 297 |    65,6 % |            513 |       0,40 s | 2026-11-25  |
 
 > Les temps de réponse dépendent de la machine qui fait tourner LM Studio :
 > ils ne sont comparables qu'entre runs faits sur la même machine.
@@ -269,7 +272,7 @@ Différences avec le bronze : textes décodés en UTF-8, `incorrect_answers`
 en liste (`VARCHAR[]`), `answered_at` et `scraped_at` en timestamp Unix
 (secondes, `BIGINT`), doublons retirés.
 
-Contenu actuel : **10 594 lignes** (5 297 questions × 2 runs).
+Contenu actuel : **26 485 lignes** (5 297 questions × 5 runs).
 
 ## Composants
 

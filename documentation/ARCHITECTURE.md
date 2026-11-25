@@ -28,7 +28,7 @@ Le pipeline suit une architecture **médaillon** (bronze → silver → gold) :
             staging.stg_obt_answers → intermediate.int_answers → marts.mart_* (4 marts)
                       │
                       ▼
-          Streamlit + Plotly (restitution)              [à faire]
+          Streamlit + Plotly (restitution) : src/app.py
 ```
 
 ## Couches

@@ -20,7 +20,7 @@ from config import (
     LLM_MODEL,
     latest_questions_csv,
 )
-from prompts import PROMPTS, DEFAULT_PROMPT_ID
+from prompts import PROMPTS
 
 LETTERS = "ABCD"
 
@@ -131,9 +131,10 @@ def parse_args():
     )
     parser.add_argument(
         "--prompt",
-        default=DEFAULT_PROMPT_ID,
+        nargs="+",  # un ou plusieurs prompts
+        default=list(PROMPTS),  # par défaut : les 3 prompts
         choices=list(PROMPTS),
-        help="prompt à utiliser",
+        help="prompt(s) à utiliser (par défaut : tous)",
     )
     parser.add_argument(
         "--limit", type=int, default=None, help="nombre de questions (pour tester)"
@@ -141,21 +142,15 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
-    client = OpenAI(base_url=LLM_BASE_URL, api_key="lm-studio")
-
-    questions = load_questions()
-    if args.limit:
-        questions = questions.head(args.limit)
-
+def run_prompt(client, questions, model, prompt_id):
+    """Pose toutes les questions au modèle avec un prompt donné, en sautant celles déjà faites."""
     # Reprise : on ne garde que les questions pas encore traitées pour ce modèle et ce prompt
     done = load_done()
     todo = questions[
-        [(qid, args.model, args.prompt) not in done for qid in questions["question_id"]]
+        [(qid, model, prompt_id) not in done for qid in questions["question_id"]]
     ]
     print(
-        f"Modèle : {args.model} | Prompt : {args.prompt} | "
+        f"Modèle : {model} | Prompt : {prompt_id} | "
         f"{len(questions) - len(todo)} déjà faites, {len(todo)} à faire"
     )
     if todo.empty:
@@ -178,8 +173,8 @@ def main():
 
         for i, (_, row) in enumerate(todo.iterrows(), start=1):
             choices = build_choices(row)
-            prompt, expected = build_prompt(args.prompt, row, choices)
-            raw_output, elapsed = ask_model(client, args.model, prompt)
+            prompt, expected = build_prompt(prompt_id, row, choices)
+            raw_output, elapsed = ask_model(client, model, prompt)
             answer = parse_letter(raw_output, LETTERS[: len(choices)])
             is_correct = answer == expected
             correct_count += is_correct
@@ -187,8 +182,8 @@ def main():
             writer.writerow(
                 {
                     "question_id": row["question_id"],
-                    "model": args.model,
-                    "prompt_id": args.prompt,
+                    "model": model,
+                    "prompt_id": prompt_id,
                     "prompt_text": prompt,
                     "choices_order": json.dumps(choices, ensure_ascii=False),
                     "expected_letter": expected,
@@ -212,6 +207,19 @@ def main():
                 )
 
     print(f"Terminé : réponses enregistrées dans {AI_ANSWERS_RAW_CSV}")
+
+
+def main():
+    args = parse_args()
+    client = OpenAI(base_url=LLM_BASE_URL, api_key="lm-studio")
+
+    questions = load_questions()
+    if args.limit:
+        questions = questions.head(args.limit)
+
+    # Un prompt après l'autre : chaque prompt est terminé avant de passer au suivant
+    for prompt_id in args.prompt:
+        run_prompt(client, questions, args.model, prompt_id)
 
 
 if __name__ == "__main__":

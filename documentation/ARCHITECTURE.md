@@ -237,7 +237,7 @@ dans le même fichier.
 |-------------------|-----------|--------------------------------------------------------------------|
 | `question_id`     | texte     | Identifiant de la question (voir convention ci-dessus)             |
 | `model`           | texte     | Identifiant du modèle dans LM Studio (ex. `google/gemma-4-12b-qat`) |
-| `prompt_id`       | texte     | Version du prompt (`v1_simple`, `v2_strict`, `v3_fewshot`)          |
+| `prompt_id`       | texte     | Version du prompt (`v1_simple`, `v2_strict`)                        |
 | `prompt_text`     | texte     | Texte exact envoyé au modèle (multi-lignes, entre guillemets dans le CSV) |
 | `choices_order`   | JSON      | Liste des choix dans l'ordre présenté (A, B, C, D)                 |
 | `expected_letter` | texte     | Lettre de la bonne réponse                                          |

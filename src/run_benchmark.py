@@ -132,7 +132,7 @@ def parse_args():
     parser.add_argument(
         "--prompt",
         nargs="+",  # un ou plusieurs prompts
-        default=list(PROMPTS),  # par défaut : les 3 prompts
+        default=list(PROMPTS),  # par défaut : les 2 prompts
         choices=list(PROMPTS),
         help="prompt(s) à utiliser (par défaut : tous)",
     )

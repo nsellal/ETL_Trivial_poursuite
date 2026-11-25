@@ -21,22 +21,6 @@ PROMPTS = {
         "{choices}\n"
         "Answer:"
     ),
-    # Consigne stricte + 2 exemples résolus (few-shot)
-    "v3_fewshot": (
-        "You are answering a multiple-choice quiz.\n"
-        "Reply with exactly one letter among {letters}, and nothing else.\n\n"
-        "Example 1:\n"
-        "Question: What is the capital of Italy?\n"
-        "A) Madrid\nB) Rome\nC) Paris\nD) Berlin\n"
-        "Answer: B\n\n"
-        "Example 2:\n"
-        "Question: The Earth revolves around the Sun.\n"
-        "A) True\nB) False\n"
-        "Answer: A\n\n"
-        "Question: {question}\n"
-        "{choices}\n"
-        "Answer:"
-    ),
 }
 
 # Prompt utilisé par défaut

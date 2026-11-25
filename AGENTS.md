@@ -97,7 +97,6 @@ l'identifiant **et** le texte du prompt utilisé.
 |--------------|-----------------------------------------------|
 | `v1_simple`  | Consigne minimale                             |
 | `v2_strict`  | Réponse = une seule lettre, rien d'autre (**défaut**) |
-| `v3_fewshot` | `v2_strict` + 2 exemples résolus              |
 
 Emplacements : `{question}`, `{choices}` (une ligne par choix `A) ...`),
 `{letters}` (`A, B, C, D` ou `A, B`).
@@ -113,7 +112,7 @@ chargé.
 ```bash
 python src/run_benchmark.py --limit 20                    # test rapide
 caffeinate -i python src/run_benchmark.py                 # run complet (prompt par défaut)
-caffeinate -i python src/run_benchmark.py --prompt v3_fewshot
+caffeinate -i python src/run_benchmark.py --prompt v1_simple
 caffeinate -i python src/run_benchmark.py --model <id du modèle dans LM Studio>
 ```
 
@@ -177,7 +176,7 @@ et le travail en double.
    fin d'un run de benchmark avant de committer `bronze/ai_answers_raw.csv`.
 6. Messages de commit **en français**, au présent ou au nom, décrivant le
    *quoi* : `Ajout du modèle stg_questions`, `Run Gemma 4 12B, prompt
-   v3_fewshot`.
+   v1_simple`.
 7. **Pas de `git push --force`** sur `main`.
 8. En cas de push refusé (`rejected … fetch first`) : `git pull --no-rebase
    --no-edit`, vérifier qu'il n'y a pas de conflit, puis `git push`.

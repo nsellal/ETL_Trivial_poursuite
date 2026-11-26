@@ -8,9 +8,7 @@
 PROMPTS = {
     # Consigne minimale
     "v1_simple": (
-        "Question: {question}\n"
-        "{choices}\n"
-        "Answer with the letter of the correct choice."
+        "Question: {question}\n{choices}\nAnswer with the letter of the correct choice."
     ),
     # Consigne stricte sur le format de la réponse
     "v2_strict": (

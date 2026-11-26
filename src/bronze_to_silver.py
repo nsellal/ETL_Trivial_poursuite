@@ -81,7 +81,9 @@ def transform(df):
     if ENCODING_COLUMN in df.columns:
         encodings = set(df[ENCODING_COLUMN].dropna().unique())
         if encodings != {EXPECTED_ENCODING}:
-            raise ValueError(f"Encodage inattendu : {encodings} (attendu : {EXPECTED_ENCODING})")
+            raise ValueError(
+                f"Encodage inattendu : {encodings} (attendu : {EXPECTED_ENCODING})"
+            )
         for column in URL3986_COLUMNS:
             df[column] = df[column].map(decode_url3986)
         df[URL3986_LIST_COLUMN] = df[URL3986_LIST_COLUMN].map(decode_url3986_list)
@@ -123,7 +125,9 @@ def build_obt(questions, answers):
     Grain : 1 ligne = 1 réponse (question × modèle × prompt)."""
     # validate="many_to_one" : plante si une question est en double
     # (sinon la jointure dupliquerait des réponses)
-    obt = answers.merge(questions, on="question_id", how="inner", validate="many_to_one")
+    obt = answers.merge(
+        questions, on="question_id", how="inner", validate="many_to_one"
+    )
 
     # Chaque réponse doit avoir trouvé sa question (remplace le test relationships de dbt)
     if len(obt) != len(answers):
@@ -152,12 +156,18 @@ def main():
     con.unregister("obt_df")
 
     # Vérification : même nombre de lignes en mémoire et dans le Parquet
-    nb_parquet = con.execute("SELECT count(*) FROM read_parquet(?)", [str(OBT_PARQUET)]).fetchone()[0]
+    nb_parquet = con.execute(
+        "SELECT count(*) FROM read_parquet(?)", [str(OBT_PARQUET)]
+    ).fetchone()[0]
     con.close()
     if nb_parquet != len(obt):
-        raise ValueError(f"{len(obt)} lignes en mémoire mais {nb_parquet} dans le Parquet")
+        raise ValueError(
+            f"{len(obt)} lignes en mémoire mais {nb_parquet} dans le Parquet"
+        )
 
-    print(f"{len(questions)} questions × {len(answers)} réponses -> silver/{OBT_PARQUET.name} ({nb_parquet} lignes)")
+    print(
+        f"{len(questions)} questions × {len(answers)} réponses -> silver/{OBT_PARQUET.name} ({nb_parquet} lignes)"
+    )
 
 
 if __name__ == "__main__":

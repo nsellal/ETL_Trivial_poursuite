@@ -220,12 +220,18 @@ pas `dbt build`) et lit les marts : **aucun calcul n'est refait** dans le
 dashboard. Les lectures sont mises en cache (`@st.cache_data`), car Streamlit
 relance le script à chaque clic.
 
-- **Filtres** par modèle et par prompt, 4 indicateurs (meilleure précision,
-  hasard, temps médian).
-- **7 onglets** : classement et nuage précision / vitesse, effet du prompt,
-  carte de chaleur des catégories, difficulté × type avec la ligne du hasard,
-  distribution des temps de réponse, biais de lettre, explorateur des erreurs
-  (les réponses une par une, avec la sortie brute du modèle).
+- **Filtres** par modèle, prompt, difficulté, type et groupe de catégories ;
+  indicateurs clés en tête (meilleure précision, hasard, temps médian).
+- **8 onglets**, chacun répondant à une question métier : classement, effet du
+  prompt, catégories, difficulté × type, temps de réponse, biais de lettre,
+  explorateur des erreurs (les réponses une par une, avec la sortie brute du
+  modèle) et données des marts (tables gold téléchargeables).
+- **Même structure sur chaque onglet** : la question en titre, une phrase
+  « À retenir » calculée sur les données filtrées, un seul graphique principal,
+  puis les vues secondaires et tableaux dans un bloc repliable « Aller plus loin ».
+- **Charte graphique fixe** (`.streamlit/config.toml` + palette dans `app.py`) :
+  thème clair, une couleur par run identique d'un onglet à l'autre, cartes de
+  chaleur centrées sur la moyenne (rouge = sous la moyenne, marine = au-dessus).
 
 ---
 

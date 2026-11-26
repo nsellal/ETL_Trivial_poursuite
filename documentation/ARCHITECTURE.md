@@ -195,8 +195,8 @@ racine avec `--profiles-dir .` (ex. `dbt debug --profiles-dir .`).
 │                                # mart_accuracy_by_difficulty, mart_letter_bias
 ├── dbt_project.yml              # projet dbt (profil trivial_pst)
 ├── profiles.yml                 # connexion DuckDB → gold/warehouse.duckdb
-├── .streamlit/config.toml       # dashboard : thème sombre par défaut (bascule
-│                                #   clair / sombre via le menu « ⋮ » > Settings)
+├── .streamlit/config.toml       # dashboard : charte claire imposée (assortie aux
+│                                #   graphiques), pas de statistiques d'usage
 └── requirements.txt
 ```
 

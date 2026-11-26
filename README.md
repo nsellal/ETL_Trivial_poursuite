@@ -1,7 +1,7 @@
 # Jouons au Trivial Poursuite : benchmark de LLM locaux
 
 Projet ETL du M1 Big Data & IA (Sup de Vinci Bordeaux), réalisé en binôme
-par Nassim Sellal et Noah.
+par Nassim Sellal et Noah POUPLIN.
 
 **Question posée :** des modèles de langage qui tournent en local sur un
 ordinateur portable sont-ils bons en culture générale ? Et qu'est-ce qui pèse
@@ -80,7 +80,7 @@ Tous ces chiffres se retrouvent, filtrables, dans le dashboard.
           Open Trivia Database (API publique)
                       │ src/extract_bronze.py
                       ▼
-   BRONZE   bronze/questions_raw_<timestamp>.csv     questions brutes (encodées url3986)
+   BRONZE   bronze/questions_raw_<timestamp>.csv     questions brutes (encodées url3986 --> format de réponse de l'API)
                       │ src/run_benchmark.py  ◄──── LM Studio (API compatible OpenAI)
                       ▼
             bronze/ai_answers_raw.csv               1 ligne = 1 réponse (question × modèle × prompt)
@@ -90,7 +90,7 @@ Tous ces chiffres se retrouvent, filtrables, dans le dashboard.
                       │ dbt + DuckDB
                       ▼
    GOLD     gold/warehouse.duckdb
-              staging.stg_obt_answers       (vue)    typage, nettoyage
+            staging.stg_obt_answers  (vue) typage, nettoyage, formatage des dates
                       ▼
               intermediate.int_answers      (table)  colonnes dérivées
                       ▼
@@ -119,8 +119,7 @@ dans [`documentation/ARCHITECTURE.md`](documentation/ARCHITECTURE.md).
 questions d'OpenTDB. L'API impose plusieurs contraintes :
 
 - **50 questions maximum par appel** et **1 appel toutes les 5 secondes** par
-  adresse IP. Le script attend 6,5 s entre deux appels et réessaie avec un
-  délai croissant en cas de refus.
+  adresse IP maximum. Le script attend 6,5 s entre deux appels et réessaie avec un délai croissant en cas de refus.
 - **Un jeton de session** garantit que l'API ne renvoie jamais deux fois la
   même question.
 - **Parcours par couple (catégorie, difficulté)**, en comparant le nombre de
@@ -131,7 +130,7 @@ questions d'OpenTDB. L'API impose plusieurs contraintes :
 - **Textes demandés en encodage `url3986`** : un encodage sans perte qui ne
   contient ni virgule ni guillemet, donc qui ne peut pas casser le CSV. Les
   textes restent encodés en bronze ; le décodage est le rôle de la couche
-  silver.
+  silver ou il passe en UTF-8.
 - **Robustesse** : écriture atomique (fichier temporaire puis renommage),
   sauvegarde après chaque couple, option `--resume` pour reprendre après une
   coupure réseau.
@@ -184,8 +183,8 @@ Choix faits pour que la mesure soit **fiable et comparable** :
   coupure ne fait rien perdre.
 
 Modèles testés : **Gemma 4 12B** et **Bonsai 27B** (MacBook Air M5),
-**Qwen 3.5 9B** (machine de Noah). Un run complet dure de 40 à 75 minutes
-selon le modèle et le prompt.
+**Qwen 3.5 9B** (machine de Noah). Un run complet sur toute les questions pour une version de prompte dure de 40 à 90 minutes
+selon le modèle, le prompt et la machine.
 
 ### 3. Transformation (silver et gold)
 
@@ -390,13 +389,11 @@ streamlit run src/app.py
 - **Temps de réponse** : ils dépendent de la machine. Gemma et Bonsai ont
   tourné sur un MacBook Air M5, Qwen sur une autre machine : la comparaison
   des temps entre modèles n'est qu'indicative.
-- **Bonsai 27B** n'a été évalué qu'avec `v2_strict`. Avec `v1_simple`, il
-  rédige des phrases jusqu'à la limite de tokens et le run complet aurait
-  duré plus de deux heures.
-- **Réponses hors format comptées fausses** : c'est un choix assumé (on
+- **Bonsai 27B** n'a été évalué qu'avec `v2_strict`, pour une question de durée d'éxecution.
+- **Réponses hors format comptées fausses** : c'est un choix pratique (on
   mesure aussi le respect de la consigne), mais il pénalise fortement
   `v1_simple`. Le pourcentage de format respecté est affiché à côté de la
-  précision pour en tenir compte.
+  précision pour en tenir compte. C'est un axe d'amélioration possible.
 - **Dataset déséquilibré** : 53 % de questions *Entertainment*. La précision
   globale reflète surtout la culture « jeux vidéo, films, anime » des
   modèles ; les résultats par catégorie sont plus parlants.
